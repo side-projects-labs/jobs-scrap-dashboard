@@ -11,7 +11,7 @@ import { groupCareerStats } from "@/utils/career";
 
 export default function DashboardPage() {
   const { data, loading, error } = useDashboardData();
-  const duties = useDutiesStats(data?.duties.sample ?? [], data?.duties.totalItems ?? 0);
+  const duties = useDutiesStats();
 
   if (loading) return <Spinner />;
   if (error) return <div className="p-6 text-red-500">오류: {error}</div>;
@@ -39,16 +39,16 @@ export default function DashboardPage() {
       <div>
         {duties.loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-5 text-sm text-gray-500 text-center">
-            AI가 주요업무 키워드를 분석 중입니다...
+            주요업무 키워드를 집계하는 중입니다...
           </div>
         )}
         {duties.error && (
           <div className="bg-white rounded-xl border border-gray-200 p-5 text-sm text-red-500">
-            키워드 분석 오류: {duties.error}
+            키워드 집계 오류: {duties.error}
           </div>
         )}
         {!duties.loading && !duties.error && duties.keywords.length > 0 && (
-          <DutiesKeywordChart data={duties.keywords} />
+          <DutiesKeywordChart data={duties.keywords} totalPostings={duties.totalPostings} />
         )}
       </div>
     </div>
