@@ -4,11 +4,15 @@ import type { DutiesKeyword } from "@/hooks/useDutiesStats";
 
 interface Props {
   data: DutiesKeyword[];
+  totalPostings: number;
 }
+
+// 막대 하나가 차지하는 세로 길이 — 라벨이 겹치거나 걸러지지 않도록 항목 수에 비례해 높이를 잡는다
+const ROW_HEIGHT = 26;
 
 const COLORS = ["#60a5fa", "#818cf8", "#a78bfa", "#f472b6", "#fb923c", "#34d399"];
 
-export default function DutiesKeywordChart({ data }: Props) {
+export default function DutiesKeywordChart({ data, totalPostings }: Props) {
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth < 640;
@@ -24,25 +28,28 @@ export default function DutiesKeywordChart({ data }: Props) {
   // 모바일에서는 표시 개수/라벨을 줄여서 깨짐을 방지합니다.
   const displayData = isMobile ? data.slice(0, 10) : data;
 
-  const chartHeight = isMobile ? 420 : 420;
+  const chartHeight = displayData.length * ROW_HEIGHT + 40;
   const margin = isMobile
-    ? { left: 80, right: 35, top: 10, bottom: 10 }
-    : { left: 80, right: 60, top: 10, bottom: 10 };
-  const yAxisWidth = isMobile ? 90 : 75;
+    ? { left: 20, right: 35, top: 10, bottom: 10 }
+    : { left: 20, right: 60, top: 10, bottom: 10 };
+  const yAxisWidth = isMobile ? 110 : 150;
   const tickFontSize = isMobile ? 10 : 11;
   const showPercentLabels = !isMobile;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 overflow-x-auto">
-      <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 sm:mb-4">주요업무 키워드 Top 20</h3>
+      <h3 className="text-xs sm:text-sm font-semibold text-gray-700">주요업무 키워드 Top 20</h3>
+      <p className="text-xs text-gray-400 mt-1 mb-3 sm:mb-4">
+        업무 정보가 있는 공고 {totalPostings.toLocaleString()}건 중 해당 업무를 언급한 공고 비율입니다
+      </p>
       <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart data={displayData} layout="vertical" margin={margin}>
           <XAxis type="number" tick={{ fontSize: tickFontSize }} />
-          <YAxis type="category" dataKey="keyword" tick={{ fontSize: tickFontSize }} width={yAxisWidth} />
+          <YAxis type="category" dataKey="keyword" tick={{ fontSize: tickFontSize }} width={yAxisWidth} interval={0} />
           <Tooltip
             formatter={(value, _, props) => [
-              `${value}건 (${props.payload.percent}%)`,
-              "빈도",
+              `${value}개 공고 (${props.payload.percent}%)`,
+              "언급한 공고",
             ]}
           />
           <Bar dataKey="count" radius={[0, 4, 4, 0]}>

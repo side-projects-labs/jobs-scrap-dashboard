@@ -1,33 +1,43 @@
 import { useEffect, useState } from "react";
+
 export interface DutiesKeyword {
   keyword: string;
   count: number;
   percent: number;
 }
 
-export function useDutiesStats(duties: string[], totalItems: number) {
+interface DutiesStatsResponse {
+  totalPostings: number;
+  keywords: DutiesKeyword[];
+  error?: string;
+}
+
+export function useDutiesStats() {
   const [keywords, setKeywords] = useState<DutiesKeyword[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [totalPostings, setTotalPostings] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!duties.length) return;
-
-    setLoading(true);
-    setError(null);
-    fetch("/api/duties-stats", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ duties, totalItems }),
-    })
-      .then((r) => r.json())
+    let cancelled = false;
+    fetch("/api/duties-stats")
+      .then((r) => r.json() as Promise<DutiesStatsResponse>)
       .then((data) => {
         if (data.error) throw new Error(data.error);
+        if (cancelled) return;
         setKeywords(data.keywords);
+        setTotalPostings(data.totalPostings);
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [duties, totalItems]);
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  return { keywords, loading, error };
+  return { keywords, totalPostings, loading, error };
 }
