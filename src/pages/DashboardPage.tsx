@@ -7,6 +7,7 @@ import CareerBarChart from "@/components/charts/CareerBarChart";
 import TechTrendChart from "@/components/charts/TechTrendChart";
 import DutiesKeywordChart from "@/components/charts/DutiesKeywordChart";
 import Spinner from "@/components/ui/Spinner";
+import { groupCareerStats } from "@/utils/career";
 
 export default function DashboardPage() {
   const { data, loading, error } = useDashboardData();
@@ -34,7 +35,7 @@ export default function DashboardPage() {
         </div>
       </div>
       <TechTrendChart data={data.recentByDay} />
-      <CareerBarChart data={data.careerStats} />
+      <CareerBarChart data={groupCareerStats(data.careerStats)} />
       <div>
         {duties.loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-5 text-sm text-gray-500 text-center">

@@ -3,6 +3,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { TECH_CATEGORIES } from "@/constants/techCategories";
 import TechFilterGroup from "./TechFilterGroup";
 import type { JobFilters } from "@/types/job";
+import { CAREER_FILTER_ORDER } from "@/utils/career";
 
 interface Props {
   filters: JobFilters;
@@ -15,7 +16,7 @@ const SOURCES = [
   { value: "saramin", label: "사람인" },
 ];
 
-const CAREERS = ["상시채용", "신입·경력", "신입", "경력무관", "경력"];
+const CAREERS = CAREER_FILTER_ORDER;
 
 export default function FilterPanel({ filters, setFilters }: Props) {
   function setTechs(techs: string[]) {
