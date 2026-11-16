@@ -1,13 +1,21 @@
 -- 주요 업무 키워드 집계
 --
 -- 공고의 업무(duties) 문장에서 키워드 사전에 해당하는 표현을 정규식으로 찾아
--- 키워드마다 "언급한 공고 수"와 비율을 전체 공고 기준으로 계산한다.
+-- 키워드마다 "언급한 공고 수"와 비율을 계산한다.
 -- 표본이나 LLM 추정이 아니라 모든 업무 항목을 직접 세므로 같은 입력이면 항상 같은 결과가 나온다.
 --
 -- 비율의 분모는 업무 정보(duties)가 있는 공고 수다.
 -- 공백 문자 차이(NBSP·제로폭 공백)는 집계 전에 정규화한다.
 -- 짧은 영문 토큰은 한글 조사가 바로 붙어도("AI를") 찾도록 \b 대신 영문자 전후 검사를 쓴다.
-create or replace function public.get_duties_keyword_stats(top_n integer default 20)
+--
+-- 구조
+--   compute_duties_keyword_stats  전체 문장을 훑는 무거운 계산(운영에서 수 초~십수 초). 공개 호출을 막는다.
+--   duties_keyword_stats_mv       계산 결과를 한 행으로 저장한 머티리얼라이즈드 뷰
+--   get_duties_keyword_stats      뷰를 읽기만 하는 공개 함수. API 호출의 문장 시간 제한 안에서 끝난다.
+-- 공고가 갱신된 뒤에는 뷰를 새로 고쳐야 한다. pg_cron이 켜져 있으면 아래에서 12시간마다 자동 등록한다.
+--   refresh materialized view concurrently public.duties_keyword_stats_mv;
+
+create or replace function public.compute_duties_keyword_stats(top_n integer default 100)
 returns jsonb
 language sql
 stable
@@ -102,4 +110,48 @@ select jsonb_build_object(
 );
 $$;
 
+-- 무거운 계산은 공개 API(anon·authenticated)로 호출할 수 없게 한다
+revoke all on function public.compute_duties_keyword_stats(integer) from public, anon, authenticated;
+
+-- 계산 결과 저장소. 새로고침을 막지 않고 읽을 수 있도록 고유 인덱스를 둔다
+drop materialized view if exists public.duties_keyword_stats_mv;
+create materialized view public.duties_keyword_stats_mv as
+  select 1 as id, public.compute_duties_keyword_stats(100) as stats;
+create unique index duties_keyword_stats_mv_id_idx on public.duties_keyword_stats_mv (id);
+grant select on public.duties_keyword_stats_mv to anon, authenticated;
+
+-- 공개 함수: 저장된 결과에서 상위 top_n개만 잘라 돌려준다
+create or replace function public.get_duties_keyword_stats(top_n integer default 20)
+returns jsonb
+language sql
+stable
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'totalPostings', stats -> 'totalPostings',
+    'keywords', coalesce((
+      select jsonb_agg(k order by ord)
+      from jsonb_array_elements(stats -> 'keywords') with ordinality as t(k, ord)
+      where ord <= greatest(top_n, 1)
+    ), '[]'::jsonb)
+  )
+  from public.duties_keyword_stats_mv
+  limit 1;
+$$;
+
 grant execute on function public.get_duties_keyword_stats(integer) to anon, authenticated;
+
+-- pg_cron이 켜져 있으면 12시간마다 새로 고친다(수집이 하루 두 번 일어난다)
+-- 꺼져 있으면 건너뛰므로 위의 refresh 문을 직접 실행하거나 수집 작업 끝에 호출한다
+do $cron$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.unschedule(jobid) from cron.job where jobname = 'refresh-duties-keyword-stats';
+    perform cron.schedule(
+      'refresh-duties-keyword-stats',
+      '10 */12 * * *',
+      'refresh materialized view concurrently public.duties_keyword_stats_mv'
+    );
+  end if;
+end
+$cron$;
