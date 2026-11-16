@@ -155,8 +155,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (sample.length > MAX_SAMPLE_CHARS)
       sample = sample.slice(0, MAX_SAMPLE_CHARS);
 
+    // 키가 없는 환경(Preview·로컬)에서는 생성자 예외 대신 명시적 오류로 fallback 한다
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ_API_KEY is not set");
+    const groq = new Groq({ apiKey });
+
     const chat = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: process.env.GROQ_MODEL || "qwen/qwen3.8-27b",
       temperature: 0.1,
       messages: [
         {

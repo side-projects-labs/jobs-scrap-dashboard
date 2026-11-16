@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 
-const COLORS = ["#bfdbfe", "#e9d5ff", "#fce7f3", "#ffedd5", "#dcfce7", "#fef9c3", "#f3f4f6"];
+const COLORS = ["#bfdbfe", "#e9d5ff", "#fce7f3", "#ffedd5", "#dcfce7", "#fef9c3", "#f3f4f6", "#cffafe"];
 
 interface Props {
   data: { career: string; count: number; percent: number }[];
